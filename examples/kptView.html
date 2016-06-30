@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Тестирование "Кадастрового плана територии" </title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html, body, #infoPanel, #map {
+            height: 100%;
+            width: 100%;
+            margin: 0px;
+        }
+        #info {
+            width: 30%;
+            position: absolute;
+            right: 20px;
+            top: 0px;
+            padding: 20px;
+			box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+			border-radius: 12px;
+        }
+		#kptInfo div div {
+            padding-left: 20px;
+		}
+		.hidden {
+			display: none;
+		}
+        .leaflet-popup-content {
+			max-height: 500px;
+			overflow-y: auto;
+		}
+
+        .leaflet-popup-content div div {
+            padding-left: 20px;
+        }
+
+    </style>
+
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+	<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+
+	<script src="../src/kptUtils.js"></script>
+	<script src="../external/Dictionary.js"></script>
+	<script src="../external/proj4.js"></script>
+</head>
+<body>
+	<div id="infoPanel">
+		<div id="map"></div>
+		<div id="info">
+			<div>Тестирование KPT("Кадастровый план територии") файлов</div>
+			<input type="file" onChange="window.viewer.selectFile(this);">
+			<div id="resCont">
+				<div id="fileProgress"></div>
+				<div id="kptInfo"></div>
+				<div id="exportCont">
+					<button id="exportButton" disabled>Экспорт в FeatureCollection</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script src="../src/view.js"></script>
+	<script>
+
+		var map = L.map('map').setView([60, 50], 3);
+
+		var osm = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'
+		}).addTo(map);
+
+		window.viewer.init(map);
+
+    </script>
+</body>
+</html>
