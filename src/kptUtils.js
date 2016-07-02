@@ -1,22 +1,6 @@
 (function () {
 	'use strict';
 
-var DEFAULTS = {
-	projections:{
-		// Томская область
-		'МСК 70, зона 4': '+proj=tmerc +lat_0=0 +lon_0=83.73333333333 +k=1 +x_0=4250000 +y_0=-5912900.566 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs',
-		'МСК 70, зона 2': '+proj=tmerc +lat_0=0 +lon_0=77.73333333333 +k=1 +x_0=2250000 +y_0=-5912900.566 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs',
-		'МСК 70, зона 3': '+proj=tmerc +lat_0=0 +lon_0=80.73333333333 +k=1 +x_0=3250000 +y_0=-5912900.566 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'
-	},
-    itemKeys: ['Quartal', 'Bounds', 'OMSPoints', 'ObjectsRealty', 'Parcels', 'Zones'],
-    childKeys: ['OMSPoints', 'ObjectsRealty', 'Parcels', 'Zones'],
-    skipKeys: {EntitySpatial: true, CoordSystems: true, SpatialData: true}//, Area: true
-};
-DEFAULTS.projections['СК кадастрового округа'] = DEFAULTS.projections['МСК 70, зона 4'];
-DEFAULTS.childKeys.forEach(function(key) {
-	DEFAULTS.skipKeys[key] = true;
-});
-
 var cadUtils = {
 	_parseProps: function(it, prevKey) {
 		var props = {};
@@ -25,7 +9,7 @@ var cadUtils = {
                 clearKey = key.replace(/ns\d:/, ''),
                 type = typeof(pt);
 
-            if (DEFAULTS.skipKeys[key]) {
+            if (window.CAD.DEFAULTS.skipKeys[key]) {
                 //console.log('Skip key:', key);
             } else if (key === '@attributes') {
                 CAD.Utils.extend(props, pt);
@@ -43,7 +27,7 @@ var cadUtils = {
 	},
 
 	_getRing: function(arr, entSys) {
-		var fromPr = DEFAULTS.projections[this.coordSystems[entSys]];
+		var fromPr = window.CAD.DEFAULTS.projections[this.coordSystems[entSys]];
 		if (!arr.splice) {
 			arr = [arr];
 		}
@@ -54,10 +38,7 @@ var cadUtils = {
 		}.bind(this));
 	},
 
-	_getCoords: function(data) {
-		var entSys = data['@attributes'].EntSys,
-			arr = data['ns3:SpatialElement'];
-
+	_getCoords: function(arr, entSys) {
 		return (arr.splice ? arr : [arr]).map(function(it) {
 			return this._getRing(it['ns3:SpelementUnit'], entSys);
 		}.bind(this));
@@ -65,7 +46,7 @@ var cadUtils = {
 
 	getChildren: function(it) {
 		var out = {};
-		DEFAULTS.childKeys.forEach(function(key) {
+		window.CAD.DEFAULTS.childKeys.forEach(function(key) {
             if (it[key]) {
 				out[key] = it[key];
 			}
@@ -85,10 +66,17 @@ var cadUtils = {
 		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial : it.EntitySpatial;
 
 		if (entitySpatial) {
-			pt.geometry = {
-			   type: 'Polygon',
-			   coordinates: this._getCoords(entitySpatial)
-			};
+            var entSys = entitySpatial['@attributes'].EntSys,
+                prKey = this.coordSystems[entSys],
+                fromPr = window.CAD.DEFAULTS.projections[prKey];
+            if (fromPr) {
+                pt.geometry = {
+                   type: 'Polygon',
+                   coordinates: this._getCoords(entitySpatial['ns3:SpatialElement'], entSys)
+                };
+            } else {
+                console.log('Skip projection:', prKey);
+            }
 		}
 		return pt;
 	},
@@ -204,11 +192,10 @@ KptNode.prototype = {
 			else if (key === 'OMSPoints') { data = data.OMSPoint; }
 			else if (key === 'Parcels') { data = data.Parcel; }
 			else if (key === 'Zones') { data = data.Zone; }
-			if (data.splice) {
-				out = this._childNodes[key] = data.map(function(it) {
-					return new KptNode(it, {type:key});
-				}.bind(this));
-			}
+			if (!data.splice) { data = [data]; }
+            out = this._childNodes[key] = data.map(function(it) {
+                return new KptNode(it, {type:key});
+            }.bind(this));
 		}
 		return out;
 	}
