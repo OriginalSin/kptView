@@ -31,7 +31,35 @@
 
 			viewer._kptInfo = document.getElementById('kptInfo');
 			viewer._groups = {};
-			viewer._selected = {};
+
+			viewer._osm = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+				zIndex: -1,
+				maxZoom: 21,
+				maxNativeZoom: 18,
+				attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'
+			}).addTo(map);
+			viewer._rosreestr = L.tileLayer.wms('http://pkk5.rosreestr.ru/arcgis/rest/services/Cadastre/Cadastre/MapServer/export',
+				{
+					zIndex: 1,
+					maxZoom: 21,
+					layers: 'show:37,36,25,26,27,28,29,30,31,23,24',
+					dpi: 96,
+					format: 'PNG32',
+					bboxSR: 102100,
+					imageSR: 102100,
+					size: '1024,1024',
+					tileSize: 1024,
+					transparent: true,
+					f: 'image'
+				}
+			);
+			L.control.layers({
+				'Пусто': L.layerGroup(),
+				OSM: viewer._osm
+			}, {
+				'Росреестр': viewer._rosreestr
+		   }, {collapsed: false, autoZIndex: false}).addTo(map);
+			
 		},
 
 		getBlob: function() {
@@ -98,7 +126,7 @@
 						}
 					});
 					if (fitbounds) {
-						viewer._map.fitBounds(fitbounds, {maxZoom: 7});
+						// viewer._map.fitBounds(fitbounds, {maxZoom: 7});
 						if (group) {
 							viewer._map.addLayer(group);
 						}
@@ -108,7 +136,10 @@
 					viewer._map.removeLayer(group);
 				}
 			}
-			return countGeo;
+			return {
+				count: countGeo,
+				fitbounds: fitbounds
+			};
 		},
 
 		parseFile: function(reader) {
@@ -124,9 +155,7 @@
 			infoChkbox.type = 'checkbox';
 			infoChkbox._cadType = '';
 			infoChkbox.onchange = function(ev) {
-				var countGeo = viewer.showItem([node], ev.target.checked);
-				if (countGeo) {
-				}
+				viewer.showItem([node], ev.target.checked);
 			};
 			Object.keys(node.childs).forEach(function(key) {
 				var infoItem = L.DomUtil.create('div', key, cont),
@@ -146,9 +175,17 @@
 				infoChkbox._cadType = key;
 				infoChkbox.onchange = function(ev) {
 					var arr = node.getChilNodes(ev.target._cadType),
-						countGeo = viewer.showItem(arr, ev.target.checked);
-					infoSpan.innerHTML = countInfo + '(геометрий: <b>' + countGeo + '</b>)';
+						stat = viewer.showItem(arr, ev.target.checked);
+					it.fitbounds = stat.fitbounds;
+					infoSpan.innerHTML = countInfo + '(геометрий: <b>' + stat.count + '</b>)';
+					L.DomUtil.addClass(infoSpan, 'pointer');
 				};
+				L.DomEvent.on(infoSpan, 'dblclick', function() {
+					if (it.fitbounds) {
+						viewer._map.fitBounds(it.fitbounds);
+					}
+				}, this);
+				
 			});
 			L.DomUtil.removeClass(viewer._exportCont, 'hidden');
 		},
