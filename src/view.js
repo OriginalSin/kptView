@@ -9,17 +9,22 @@
 			L.DomUtil.addClass(viewer._resCont, 'hidden');
 
 			viewer._exportCont = document.getElementById('exportCont');
-            viewer._exportIcon = L.DomUtil.create('a', 'button', viewer._exportCont);
-            viewer._exportIcon.setAttribute('target', '_blank');
-            viewer._exportIcon.setAttribute('href', '');
-			viewer._exportIcon.innerHTML = 'Экспорт в FeatureCollection';
-            viewer._exportIcon.addEventListener('click', function () {
+            var exportIcon = null;
+			if (navigator.msSaveBlob) { // IE 10+
+				exportIcon = L.DomUtil.create('button', 'button', viewer._exportCont);
+			} else {
+				exportIcon = L.DomUtil.create('a', 'button', viewer._exportCont);
+				exportIcon.setAttribute('target', '_blank');
+				exportIcon.setAttribute('href', '');
+            }
+			exportIcon.innerHTML = 'Экспорт в FeatureCollection';
+			exportIcon.addEventListener('click', function () {
                 var obj = viewer.getBlob();
-                if (navigator.msSaveBlob) { // IE 10+
-                    navigator.msSaveBlob(obj.blob, obj.file);
-                } else {
-                    viewer._exportIcon.setAttribute('download', obj.file);
-                    viewer._exportIcon.setAttribute('href', window.URL.createObjectURL(obj.blob));
+                if (navigator.msSaveOrOpenBlob) { // IE 10+
+                    navigator.msSaveOrOpenBlob(obj.blob, obj.file);
+				} else {
+                    exportIcon.setAttribute('download', obj.file);
+                    exportIcon.setAttribute('href', window.URL.createObjectURL(obj.blob));
                 }
             }, false);
 			L.DomUtil.addClass(viewer._exportCont, 'hidden');
@@ -140,11 +145,9 @@
 				infoChkbox.type = 'checkbox';
 				infoChkbox._cadType = key;
 				infoChkbox.onchange = function(ev) {
-					var arr = node.getChilNodes(ev.target._cadType);
-					var countGeo = viewer.showItem(arr, ev.target.checked);
-					if (countGeo) {
-						infoSpan.innerHTML = countInfo + '(геометрий: <b>' + countGeo + '</b>)';
-					}
+					var arr = node.getChilNodes(ev.target._cadType),
+						countGeo = viewer.showItem(arr, ev.target.checked);
+					infoSpan.innerHTML = countInfo + '(геометрий: <b>' + countGeo + '</b>)';
 				};
 			});
 			L.DomUtil.removeClass(viewer._exportCont, 'hidden');
@@ -155,8 +158,19 @@
 			viewer._kptInfo.innerHTML = '';
 			L.DomUtil.addClass(viewer._exportCont, 'hidden');
 
-			var reader = new FileReader();
-			reader.onload = viewer.parseFile.bind(this, reader);
+			var reader = new FileReader(),
+				file = el.files[0];
+
+			reader.onload = function() {
+				viewer._fileProgress.innerHTML = 'загружено: <b>' + file.size + '</b> байт';
+				Object.keys(viewer._groups).forEach(function(type) {
+					var group = viewer._groups[type];
+					group.clearLayers();
+					viewer._map.removeLayer(group);
+				});
+				viewer._groups = {};
+				viewer.parseFile(reader);
+			};
 			reader.onprogress = function(data) {
 				if (data.lengthComputable) {                                            
 					L.DomUtil.removeClass(viewer._resCont, 'hidden');
@@ -165,7 +179,7 @@
 				}
 			};
 			if (el.files.length) {
-				reader.readAsText(el.files[0]);
+				reader.readAsText(file);
 			}
 		}
 	}

@@ -20,6 +20,13 @@
 			box-shadow: 0 3px 14px rgba(0,0,0,0.4);
 			border-radius: 12px;
         }
+		input {
+            padding-top: 20px;
+			background-color: transparent;
+		}
+		input::-ms-browse {
+            margin-left: 10px;
+		}
 		#kptInfo div div {
             padding-left: 20px;
 		}
@@ -75,7 +82,7 @@
 	<div id="infoPanel">
 		<div id="map"></div>
 		<div id="info">
-			<div>Тестирование KPT("Кадастровый план територии") файлов</div>
+			<div>Тестирование KPT("Кадастровый план територии") файлов <br>(<a href="https://github.com/OriginalSin/kptView/tree/master/testdata" target="_blank">Скачать примеры файлов</a>)</div>
 			<input type="file" onChange="window.viewer.selectFile(this);">
 			<div id="resCont">
 				<div id="fileProgress"></div>
