@@ -26,8 +26,7 @@ var cadUtils = {
         return props;
 	},
 
-	_getRing: function(arr, entSys) {
-		var fromPr = window.CAD.DEFAULTS.projections[this.coordSystems[entSys]];
+	_getRing: function(arr, fromPr) {
 		if (!arr.splice) {
 			arr = [arr];
 		}
@@ -38,9 +37,9 @@ var cadUtils = {
 		}.bind(this));
 	},
 
-	_getCoords: function(arr, entSys) {
+	_getCoords: function(arr, fromPr) {
 		return (arr.splice ? arr : [arr]).map(function(it) {
-			return this._getRing(it['ns3:SpelementUnit'], entSys);
+			return this._getRing(it['ns3:SpelementUnit'], fromPr);
 		}.bind(this));
 	},
 
@@ -52,6 +51,22 @@ var cadUtils = {
 			}
 		});
 		return out;
+	},
+
+	getProjections: function(prKey, cnum) {
+		var fromPr = window.CAD.DEFAULTS.projections[prKey];
+		if (!fromPr) {
+			var str = 'МСК ';
+			if (prKey === 'СК кадастрового округа') {
+				str += cnum.split(':')[0];
+			}
+			for (var key in window.CAD.DEFAULTS.projections) {
+				if (key.indexOf(str) === 0) {
+					return window.CAD.DEFAULTS.projections[key];
+				}
+			}
+		}
+		return fromPr;
 	},
 
 	getFeature: function (it, options) {
@@ -68,11 +83,11 @@ var cadUtils = {
 		if (entitySpatial) {
             var entSys = entitySpatial['@attributes'].EntSys,
                 prKey = this.coordSystems[entSys],
-                fromPr = window.CAD.DEFAULTS.projections[prKey];
+                fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
             if (fromPr) {
                 pt.geometry = {
                    type: 'Polygon',
-                   coordinates: this._getCoords(entitySpatial['ns3:SpatialElement'], entSys)
+                   coordinates: this._getCoords(entitySpatial['ns3:SpatialElement'], fromPr)
                 };
             } else {
                 console.log('Skip projection:', prKey);

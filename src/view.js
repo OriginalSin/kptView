@@ -57,7 +57,7 @@
 				'Пусто': L.layerGroup(),
 				OSM: viewer._osm
 			}, {
-				'Росреестр': viewer._rosreestr
+				'Росреестр (от 15 зума)': viewer._rosreestr
 		   }, {collapsed: false, autoZIndex: false}).addTo(map);
 			
 		},
