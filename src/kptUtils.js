@@ -78,7 +78,7 @@ var cadUtils = {
 		var pt = {
 			properties: this._parseProps(it)
 		},
-		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial : it.EntitySpatial;
+		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial || it.SpatialData.Entity_Spatial : it.EntitySpatial;
 
 		if (entitySpatial) {
             var entSys = entitySpatial['@attributes'].EntSys,
@@ -99,12 +99,15 @@ var cadUtils = {
 	getCoordSystems: function(data, flag) {
 		var out = flag ? null : this.coordSystems;
 		if (!out && data) {
-			var arr = data.CoordSystems['ns3:CoordSystem'],
+			var arr = data.CoordSystems ? data.CoordSystems['ns3:CoordSystem'] : null,
 				out = {};
+			if (data.Coord_System) {
+				arr = [data.Coord_System];
+			}
 
 			(arr.splice ? arr : [arr]).forEach(function(it) {
 				var ph = it['@attributes'];
-				out[ph.CsId] = ph.Name;
+				out[ph.CsId || ph.Cs_Id] = ph.Name;
 			}.bind(this));
 			this.coordSystems = out;
 		}
@@ -172,10 +175,15 @@ var cadUtils = {
 	},
 
 	kptToJson: function (xmlStr) {
-		var data = this.xmlToJson(this.parseXML(xmlStr)),
-			cadastralBlock = data.KPT.CadastralBlocks.CadastralBlock,
-			arr = cadastralBlock.CoordSystems['ns3:CoordSystem'],
+		var data = this.xmlToJson(this.parseXML(xmlStr));
+		var cadastralBlock = data.KPT ? data.KPT.CadastralBlocks.CadastralBlock :
+				data.Region_Cadastr ? data.Region_Cadastr.Package.Cadastral_Blocks.Cadastral_Block : null;
+
+		var arr = cadastralBlock.CoordSystems ? cadastralBlock.CoordSystems['ns3:CoordSystem'] : null,
 			coordSystems = {};
+		if (cadastralBlock.Coord_System) {
+			arr = [cadastralBlock.Coord_System];
+		}
 
 		(arr.splice ? arr : [arr]).forEach(function(it) {
 			var ph = it['@attributes'];
