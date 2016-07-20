@@ -1,22 +1,7 @@
 (function () {
 	'use strict';
 
-var DEFAULTS = {
-	projections:{
-		// Томская область
-		'МСК 70, зона 4': '+proj=tmerc +lat_0=0 +lon_0=83.73333333333 +k=1 +x_0=4250000 +y_0=-5912900.566 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs',
-		'МСК 70, зона 2': '+proj=tmerc +lat_0=0 +lon_0=77.73333333333 +k=1 +x_0=2250000 +y_0=-5912900.566 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs',
-		'МСК 70, зона 3': '+proj=tmerc +lat_0=0 +lon_0=80.73333333333 +k=1 +x_0=3250000 +y_0=-5912900.566 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'
-	},
-    itemKeys: ['Quartal', 'Bounds', 'OMSPoints', 'ObjectsRealty', 'Parcels', 'Zones'],
-    childKeys: ['OMSPoints', 'ObjectsRealty', 'Parcels', 'Zones'],
-    skipKeys: {EntitySpatial: true, CoordSystems: true, SpatialData: true}//, Area: true
-};
-DEFAULTS.projections['СК кадастрового округа'] = DEFAULTS.projections['МСК 70, зона 4'];
-DEFAULTS.childKeys.forEach(function(key) {
-	DEFAULTS.skipKeys[key] = true;
-});
-
+var version = 'Версия от: ‎20.07.‎2016';
 var cadUtils = {
 	_parseProps: function(it, prevKey) {
 		var props = {};
@@ -25,8 +10,10 @@ var cadUtils = {
                 clearKey = key.replace(/ns\d:/, ''),
                 type = typeof(pt);
 
-            if (DEFAULTS.skipKeys[key]) {
+            if (window.CAD.DEFAULTS.skipKeys[key]) {
                 //console.log('Skip key:', key);
+            } else if (key === 'Entity_Spatial') {
+                props[prevKey] = key;
             } else if (key === '@attributes') {
                 CAD.Utils.extend(props, pt);
             } else if (type === 'string') {
@@ -42,35 +29,50 @@ var cadUtils = {
         return props;
 	},
 
-	_getRing: function(arr, entSys) {
-		var fromPr = DEFAULTS.projections[this.coordSystems[entSys]];
+	_getRing: function(arr, fromPr) {
 		if (!arr.splice) {
 			arr = [arr];
 		}
 		return arr.map(function(it) {
-			var p = it['ns3:Ordinate']['@attributes'];
-			var coord = proj4(fromPr, 'WGS84', [Number(p.Y), Number(p.X)]);
+			var ordinate = it['ns3:Ordinate'] || it.Ordinate,
+				p = ordinate['@attributes'],
+				coord = proj4(fromPr, 'WGS84', [Number(p.Y), Number(p.X)]);
 			return coord;
 		}.bind(this));
 	},
 
-	_getCoords: function(data) {
-		var entSys = data['@attributes'].EntSys,
-			arr = data['ns3:SpatialElement'];
-
+	_getCoords: function(arr, fromPr) {
 		return (arr.splice ? arr : [arr]).map(function(it) {
-			return this._getRing(it['ns3:SpelementUnit'], entSys);
+			return this._getRing(it['ns3:SpelementUnit'] || it.Spelement_Unit, fromPr);
 		}.bind(this));
 	},
 
 	getChildren: function(it) {
 		var out = {};
-		DEFAULTS.childKeys.forEach(function(key) {
+		window.CAD.DEFAULTS.childKeys.forEach(function(key) {
             if (it[key]) {
 				out[key] = it[key];
 			}
 		});
 		return out;
+	},
+
+	getProjections: function(prKey, cnum) {
+		var fromPr = window.CAD.DEFAULTS.projections[prKey];
+		if (!fromPr) {
+			var str = 'МСК ';
+			if (prKey === 'СК кадастрового округа') {
+				str += cnum.split(':')[0];
+			} else if (prKey.indexOf('МСК-') === 0) {
+				str = prKey.replace('МСК-', str);
+			}
+			for (var key in window.CAD.DEFAULTS.projections) {
+				if (key.indexOf(str) === 0) {
+					return window.CAD.DEFAULTS.projections[key];
+				}
+			}
+		}
+		return fromPr;
 	},
 
 	getFeature: function (it, options) {
@@ -82,13 +84,22 @@ var cadUtils = {
 		var pt = {
 			properties: this._parseProps(it)
 		},
-		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial : it.EntitySpatial;
+		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial || it.SpatialData.Entity_Spatial : it.EntitySpatial || it.Entity_Spatial;
 
 		if (entitySpatial) {
-			pt.geometry = {
-			   type: 'Polygon',
-			   coordinates: this._getCoords(entitySpatial)
-			};
+            var attr = entitySpatial['@attributes'],
+				spatial = entitySpatial['ns3:SpatialElement'] || entitySpatial.Spatial_Element,
+				entSys = attr.EntSys || attr.Ent_Sys,
+                prKey = this.coordSystems[entSys],
+                fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
+            if (fromPr) {
+                pt.geometry = {
+                   type: 'Polygon',
+                   coordinates: this._getCoords(spatial, fromPr)
+                };
+            } else {
+                console.log('Skip projection:', prKey);
+            }
 		}
 		return pt;
 	},
@@ -96,12 +107,15 @@ var cadUtils = {
 	getCoordSystems: function(data, flag) {
 		var out = flag ? null : this.coordSystems;
 		if (!out && data) {
-			var arr = data.CoordSystems['ns3:CoordSystem'],
+			var arr = data.CoordSystems ? data.CoordSystems['ns3:CoordSystem'] : null,
 				out = {};
+			if (data.Coord_System) {
+				arr = [data.Coord_System];
+			}
 
 			(arr.splice ? arr : [arr]).forEach(function(it) {
 				var ph = it['@attributes'];
-				out[ph.CsId] = ph.Name;
+				out[ph.CsId || ph.Cs_Id] = ph.Name;
 			}.bind(this));
 			this.coordSystems = out;
 		}
@@ -169,10 +183,15 @@ var cadUtils = {
 	},
 
 	kptToJson: function (xmlStr) {
-		var data = this.xmlToJson(this.parseXML(xmlStr)),
-			cadastralBlock = data.KPT.CadastralBlocks.CadastralBlock,
-			arr = cadastralBlock.CoordSystems['ns3:CoordSystem'],
+		var data = this.xmlToJson(this.parseXML(xmlStr));
+		var cadastralBlock = data.KPT ? data.KPT.CadastralBlocks.CadastralBlock :
+				data.Region_Cadastr ? data.Region_Cadastr.Package.Cadastral_Blocks.Cadastral_Block : null;
+
+		var arr = cadastralBlock.CoordSystems ? cadastralBlock.CoordSystems['ns3:CoordSystem'] : null,
 			coordSystems = {};
+		if (cadastralBlock.Coord_System) {
+			arr = [cadastralBlock.Coord_System];
+		}
 
 		(arr.splice ? arr : [arr]).forEach(function(it) {
 			var ph = it['@attributes'];
@@ -204,11 +223,10 @@ KptNode.prototype = {
 			else if (key === 'OMSPoints') { data = data.OMSPoint; }
 			else if (key === 'Parcels') { data = data.Parcel; }
 			else if (key === 'Zones') { data = data.Zone; }
-			if (data.splice) {
-				out = this._childNodes[key] = data.map(function(it) {
-					return new KptNode(it, {type:key});
-				}.bind(this));
-			}
+			if (!data.splice) { data = [data]; }
+            out = this._childNodes[key] = data.map(function(it) {
+                return new KptNode(it, {type:key});
+            }.bind(this));
 		}
 		return out;
 	}
@@ -219,5 +237,5 @@ KptNode.prototype = {
 	};
 	window.CAD = window.CAD || {};
 	window.CAD.Utils = cadUtils;
-
+	window.CAD.version = version;
 })();

@@ -14,18 +14,55 @@
         #info {
             width: 30%;
             position: absolute;
-            right: 20px;
+            right: 120px;
             top: 0px;
             padding: 20px;
 			box-shadow: 0 3px 14px rgba(0,0,0,0.4);
 			border-radius: 12px;
         }
+		input {
+            padding-top: 20px;
+			background-color: transparent;
+		}
+		input::-ms-browse {
+            margin-left: 10px;
+		}
 		#kptInfo div div {
             padding-left: 20px;
+		}
+		.pointer {
+            cursor: pointer;
 		}
 		.hidden {
 			display: none;
 		}
+        .button {
+            display: inline-block;
+            outline: none;
+            cursor: pointer;
+            border: solid 1px #da7c0c;
+            margin-top: 10px;
+            text-align: center;
+            text-decoration: none;
+            font: 14px/100% Arial, Helvetica, sans-serif;
+            padding: .5em 2em .55em;
+            -webkit-border-radius: .5em; 
+            -moz-border-radius: .5em;
+            border-radius: .3em;
+            -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+            -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+            box-shadow: 0 1px 2px rgba(0,0,0,.2);
+        }
+        .button:hover {
+            background: #f47c20;
+            background: -webkit-gradient(linear, left top, left bottom, from(#f88e11), to(#f06015));
+            background: -moz-linear-gradient(top,  #f88e11,  #f06015);
+            filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f88e11', endColorstr='#f06015');
+        }
+        .button:active {
+            position: relative;
+            top: 1px;
+        }
         .leaflet-popup-content {
 			max-height: 500px;
 			overflow-y: auto;
@@ -35,26 +72,28 @@
             padding-left: 20px;
         }
 
+		#cadVersion {
+			font-weight: bold;
+		}
     </style>
 
 	<link rel="stylesheet" href="../external/leaflet.css" />
 	<script src="../external/leaflet.js"></script>
 
 	<script src="../src/kptUtils.js"></script>
-	<script src="../external/Dictionary.js"></script>
+	<script src="../external/mskCad.js"></script>
 	<script src="../external/proj4.js"></script>
 </head>
 <body>
 	<div id="infoPanel">
 		<div id="map"></div>
 		<div id="info">
-			<div>Тестирование KPT("Кадастровый план територии") файлов</div>
+			<div>Тестирование KPT("Кадастровый план територии") файлов <br>(<a href="https://github.com/OriginalSin/kptView/tree/master/testdata" target="_blank">Скачать примеры файлов</a>) <span id="cadVersion"></span></div>
 			<input type="file" onChange="window.viewer.selectFile(this);">
 			<div id="resCont">
 				<div id="fileProgress"></div>
 				<div id="kptInfo"></div>
 				<div id="exportCont">
-					<button id="exportButton" disabled>Экспорт в FeatureCollection</button>
 				</div>
 			</div>
 		</div>
@@ -62,15 +101,10 @@
 	<script src="../src/view.js"></script>
 	<script>
 
-		var map = L.map('map').setView([60, 50], 3);
-
-		var osm = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-			maxZoom: 18,
-			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'
-		}).addTo(map);
-
+		var map = L.map('map').setView([60, 80], 3);
 		window.viewer.init(map);
-
+		
+        document.getElementById("cadVersion").innerHTML = window.CAD.version;
     </script>
 </body>
 </html>
