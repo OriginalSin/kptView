@@ -18,6 +18,7 @@
 				exportIcon.setAttribute('href', '');
             }
 			exportIcon.innerHTML = 'Экспорт в FeatureCollection';
+			viewer._countSpan = L.DomUtil.create('span', '', viewer._exportCont);
 			exportIcon.addEventListener('click', function () {
                 var obj = viewer.getBlob();
                 if (navigator.msSaveOrOpenBlob) { // IE 10+
@@ -26,6 +27,7 @@
                     exportIcon.setAttribute('download', obj.file);
                     exportIcon.setAttribute('href', window.URL.createObjectURL(obj.blob));
                 }
+				viewer._countSpan.innerHTML = '(геометрий: <b>' + obj.count + '</b>)';
             }, false);
 			L.DomUtil.addClass(viewer._exportCont, 'hidden');
 
@@ -73,7 +75,8 @@
             });
             return {
                 file: 'data_' + Date.now() + '.geojson',
-                blob: new Blob([JSON.stringify(fc, null, '\t')], { type: 'text/json;charset=utf-8;' })
+                blob: new Blob([JSON.stringify(fc, null, '\t')], { type: 'text/json;charset=utf-8;' }),
+				count: fc ? fc.features.length : 0 
             };
 		},
 
@@ -188,6 +191,7 @@
 				
 			});
 			L.DomUtil.removeClass(viewer._exportCont, 'hidden');
+			viewer._countSpan.innerHTML = '';
 		},
 
 		selectFile: function(el) {

@@ -1,6 +1,7 @@
 (function () {
 	'use strict';
 
+var version = 'Версия от: ‎20.07.‎2016';
 var cadUtils = {
 	_parseProps: function(it, prevKey) {
 		var props = {};
@@ -11,6 +12,8 @@ var cadUtils = {
 
             if (window.CAD.DEFAULTS.skipKeys[key]) {
                 //console.log('Skip key:', key);
+            } else if (key === 'Entity_Spatial') {
+                props[prevKey] = key;
             } else if (key === '@attributes') {
                 CAD.Utils.extend(props, pt);
             } else if (type === 'string') {
@@ -31,15 +34,16 @@ var cadUtils = {
 			arr = [arr];
 		}
 		return arr.map(function(it) {
-			var p = it['ns3:Ordinate']['@attributes'];
-			var coord = proj4(fromPr, 'WGS84', [Number(p.Y), Number(p.X)]);
+			var ordinate = it['ns3:Ordinate'] || it.Ordinate,
+				p = ordinate['@attributes'],
+				coord = proj4(fromPr, 'WGS84', [Number(p.Y), Number(p.X)]);
 			return coord;
 		}.bind(this));
 	},
 
 	_getCoords: function(arr, fromPr) {
 		return (arr.splice ? arr : [arr]).map(function(it) {
-			return this._getRing(it['ns3:SpelementUnit'], fromPr);
+			return this._getRing(it['ns3:SpelementUnit'] || it.Spelement_Unit, fromPr);
 		}.bind(this));
 	},
 
@@ -59,6 +63,8 @@ var cadUtils = {
 			var str = 'МСК ';
 			if (prKey === 'СК кадастрового округа') {
 				str += cnum.split(':')[0];
+			} else if (prKey.indexOf('МСК-') === 0) {
+				str = prKey.replace('МСК-', str);
 			}
 			for (var key in window.CAD.DEFAULTS.projections) {
 				if (key.indexOf(str) === 0) {
@@ -78,16 +84,18 @@ var cadUtils = {
 		var pt = {
 			properties: this._parseProps(it)
 		},
-		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial || it.SpatialData.Entity_Spatial : it.EntitySpatial;
+		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial || it.SpatialData.Entity_Spatial : it.EntitySpatial || it.Entity_Spatial;
 
 		if (entitySpatial) {
-            var entSys = entitySpatial['@attributes'].EntSys,
+            var attr = entitySpatial['@attributes'],
+				spatial = entitySpatial['ns3:SpatialElement'] || entitySpatial.Spatial_Element,
+				entSys = attr.EntSys || attr.Ent_Sys,
                 prKey = this.coordSystems[entSys],
                 fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
             if (fromPr) {
                 pt.geometry = {
                    type: 'Polygon',
-                   coordinates: this._getCoords(entitySpatial['ns3:SpatialElement'], fromPr)
+                   coordinates: this._getCoords(spatial, fromPr)
                 };
             } else {
                 console.log('Skip projection:', prKey);
@@ -229,5 +237,5 @@ KptNode.prototype = {
 	};
 	window.CAD = window.CAD || {};
 	window.CAD.Utils = cadUtils;
-
+	window.CAD.version = version;
 })();
