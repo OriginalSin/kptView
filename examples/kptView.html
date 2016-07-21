@@ -88,12 +88,13 @@
 	<div id="infoPanel">
 		<div id="map"></div>
 		<div id="info">
-			<div>Тестирование KPT("Кадастровый план територии") файлов <br>(<a href="https://github.com/OriginalSin/kptView/tree/master/testdata" target="_blank">Скачать примеры файлов</a>) <span id="cadVersion"></span></div>
+			<div>Тестирование КПТ("Кадастровый план територии") файлов <br>(<a href="https://github.com/OriginalSin/kptView/tree/master/testdata" target="_blank">Скачать примеры файлов</a>) <span id="cadVersion"></span></div>
 			<input type="file" onChange="window.viewer.selectFile(this);">
 			<div id="resCont">
 				<div id="fileProgress"></div>
 				<div id="kptInfo"></div>
 				<div id="exportCont">
+                                    <input type="checkbox" id="convertMSK" class="hidden"><label>Сохранить в МСК</label>
 				</div>
 			</div>
 		</div>
