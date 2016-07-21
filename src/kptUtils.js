@@ -64,6 +64,8 @@ var cadUtils = {
 			var str = 'МСК ';
 			if (prKey === 'СК кадастрового округа') {
 				str += cnum.split(':')[0];
+			} else if (prKey.indexOf('МСК - ') === 0) {
+				str = prKey.replace('МСК - ', str);
 			} else if (prKey.indexOf('МСК-') === 0) {
 				str = prKey.replace('МСК-', str);
 			}
