@@ -36,7 +36,8 @@ var cadUtils = {
 		return arr.map(function(it) {
 			var ordinate = it['ns3:Ordinate'] || it.Ordinate,
 				p = ordinate['@attributes'],
-				coord = proj4(fromPr, 'WGS84', [Number(p.Y), Number(p.X)]);
+				coord = [Number(p.Y), Number(p.X)];
+			if (fromPr) { coord = proj4(fromPr, 'WGS84', coord); }
 			return coord;
 		}.bind(this));
 	},
@@ -95,7 +96,7 @@ var cadUtils = {
             if (fromPr) {
                 pt.geometry = {
                    type: 'Polygon',
-                   coordinates: this._getCoords(spatial, fromPr)
+                   coordinates: this._getCoords(spatial, options && options.flagMSK ? '' : fromPr)
                 };
             } else {
                 console.log('Skip projection:', prKey);
@@ -212,6 +213,7 @@ var KptNode = function (data, options) {
 	this._coordSystems = CAD.Utils.getCoordSystems(data, this.options.type === 'root');
 	
 	this.feature = CAD.Utils.getFeature(data);
+	this.featureMsk = CAD.Utils.getFeature(data, {flagMSK: true});
 	this.id = this.feature.properties.CadastralNumber || 'none';
 }
 KptNode.prototype = {

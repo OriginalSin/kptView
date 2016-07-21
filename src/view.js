@@ -22,7 +22,7 @@
             L.DomUtil.removeClass(convertCoord, 'hidden');
             viewer._countSpan = L.DomUtil.create('span', '', viewer._exportCont);
             exportIcon.addEventListener('click', function () {
-                var obj = viewer.getBlob();
+                var obj = viewer.getBlob(convertCoord.checked);
                 if (navigator.msSaveOrOpenBlob) { // IE 10+
                     navigator.msSaveOrOpenBlob(obj.blob, obj.file);
                 } else {
@@ -65,10 +65,12 @@
             }, {collapsed: false, autoZIndex: false}).addTo(map);
 
         },
-        getBlob: function () {
-            var fc = null;
-            Object.keys(viewer._groups).forEach(function (key) {
-                viewer._groups[key].eachLayer(function (layer) {
+        getBlob: function (flagMSK) {
+            var fc = null,
+                items = flagMSK ? viewer._groupsMsk : viewer._groups;
+
+            Object.keys(items).forEach(function (key) {
+                items[key].eachLayer(function (layer) {
                     var geojson = layer.toGeoJSON();
                     if (fc) {
                         Array.prototype.push.apply(fc.features, geojson.features);
@@ -113,18 +115,25 @@
             var countGeo = 0;
             if (arr.length) {
                 var type = arr[0].options.type,
-                        group = viewer.getGroup(type);
+                        group = viewer.getGroup(type),
+                        groupMsk = viewer._groupsMsk[type];
+
+                if (!groupMsk) { groupMsk = viewer._groupsMsk[type] = L.featureGroup(); }
                 if (flag) {
                     var fitbounds, countGeo = 0;
                     arr.forEach(function (node) {
                         var it = node.feature;
                         if (it.geometry) {
                             var feature = L.GeoJSON.asFeature(it.geometry),
-                                    geoJson = L.geoJson(feature, node.options),
-                                    bounds = geoJson.getBounds();
+                                geoJson = L.geoJson(feature, node.options),
+                                bounds = geoJson.getBounds(),
+                                itMsk = node.featureMsk,
+                                featureMsk = L.GeoJSON.asFeature(itMsk.geometry),
+                                geoJsonMsk = L.geoJson(featureMsk, node.options);
 
-                            feature.properties = it.properties || {};
+                            feature.properties = featureMsk.properties = it.properties || {};
                             group.addLayer(geoJson);
+                            groupMsk.addLayer(geoJsonMsk);
                             countGeo++;
                             if (!fitbounds) {
                                 fitbounds = bounds;
@@ -142,6 +151,7 @@
                 } else if (group) {
                     group.clearLayers();
                     viewer._map.removeLayer(group);
+                    groupMsk.clearLayers();
                 }
             }
             return {
@@ -200,7 +210,8 @@
             viewer._countSpan.innerHTML = '';
         },
         selectFile: function (el) {
-            viewer._groups = {};
+            if (!viewer._groupsMsk) { viewer._groupsMsk = {}; }
+            if (!viewer._groups) { viewer._groups = {}; }
             viewer._kptInfo.innerHTML = '';
             L.DomUtil.addClass(viewer._exportCont, 'hidden');
 
@@ -215,6 +226,11 @@
                     viewer._map.removeLayer(group);
                 });
                 viewer._groups = {};
+                Object.keys(viewer._groupsMsk).forEach(function (type) {
+                    var group = viewer._groupsMsk[type];
+                    group.clearLayers();
+                });
+                viewer._groupsMsk = {};
                 viewer.parseFile(reader);
             };
             reader.onprogress = function (data) {
