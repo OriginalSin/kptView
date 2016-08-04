@@ -1,7 +1,7 @@
 (function () {
 	'use strict';
 
-var version = 'Версия от: ‎20.07.‎2016';
+var version = 'Версия от: 04.08.‎2016';
 var cadUtils = {
 	_parseProps: function(it, prevKey) {
 		var props = {};
@@ -29,10 +29,18 @@ var cadUtils = {
         return props;
 	},
 
+	_getPoint: function(it, fromPr) {
+		var ordinate = it['ns3:Ordinate'] || it.Ordinate,
+			r = it['ns3:R'] || {},
+			p = ordinate['@attributes'],
+			coord = [Number(p.Y), Number(p.X)];
+		if (fromPr) { coord = proj4(fromPr, 'WGS84', coord); }
+		if (r['#text']) { coord.push(Number(r['#text'])); }
+
+		return coord;
+	},
+
 	_getRing: function(arr, fromPr) {
-		if (!arr.splice) {
-			arr = [arr];
-		}
 		return arr.map(function(it) {
 			var ordinate = it['ns3:Ordinate'] || it.Ordinate,
 				p = ordinate['@attributes'],
@@ -42,10 +50,35 @@ var cadUtils = {
 		}.bind(this));
 	},
 
-	_getCoords: function(arr, fromPr) {
-		return (arr.splice ? arr : [arr]).map(function(it) {
-			return this._getRing(it['ns3:SpelementUnit'] || it.Spelement_Unit, fromPr);
-		}.bind(this));
+	_getGeometry: function(arr, fromPr) {
+        var type = 'Polygon',
+            multi = '',
+            coords = [],
+			isArr = arr.splice ? true : false;
+        coords = (isArr ? arr : [arr]).map(function(it) {
+            var arr1 = it['ns3:SpelementUnit'] || it.Spelement_Unit;
+            if (!arr1.splice) {
+				if (arr1['@attributes']) {
+					var typeUnit = arr1['@attributes'].TypeUnit;
+					if (typeUnit === 'Окружность') {
+						type = 'Point';
+						return this._getPoint(arr1, fromPr);
+					}
+				}
+				arr1 = [arr1];
+			}
+            return this._getRing(arr1, fromPr);
+        }.bind(this));
+        if (isArr) {
+            multi = 'Multi';
+            coords = [coords];
+        } else if (type === 'Point') {
+            coords = coords[0];
+        }
+        return {
+            type: multi + type,
+            coordinates: coords
+        };
 	},
 
 	getChildren: function(it) {
@@ -96,10 +129,10 @@ var cadUtils = {
                 prKey = this.coordSystems[entSys],
                 fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
             if (fromPr) {
-                pt.geometry = {
-                   type: 'Polygon',
-                   coordinates: this._getCoords(spatial, options && options.flagMSK ? '' : fromPr)
-                };
+                pt.geometry = this._getGeometry(spatial, options && options.flagMSK ? '' : fromPr);
+                if(pt.geometry.type === 'Point' && pt.geometry.coordinates.length === 3) {
+                   pt.properties.Radius = pt.geometry.coordinates[2];
+                }
             } else {
                 console.log('Skip projection:', prKey);
             }

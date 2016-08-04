@@ -102,7 +102,7 @@
                         .bindPopup(template)
                         .on('popupopen', function (ev) {
                             var layer = ev.layer,
-                                    props = layer.feature.properties,
+                                    props = layer.feature ? layer.feature.properties : {},
                                     popup = ev.popup,
                                     out = '';
 
