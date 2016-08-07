@@ -91,6 +91,15 @@ var cadUtils = {
 		return out;
 	},
 
+	findProjections: function(str) {
+        for (var key in window.CAD.DEFAULTS.projections) {
+            if (key.indexOf(str) === 0) {
+                return window.CAD.DEFAULTS.projections[key];
+            }
+        }
+		return null;
+	},
+
 	getProjections: function(prKey, cnum) {
 		var fromPr = window.CAD.DEFAULTS.projections[prKey];
 		if (!fromPr) {
@@ -102,11 +111,7 @@ var cadUtils = {
 			} else if (prKey.indexOf('МСК-') === 0) {
 				str = prKey.replace('МСК-', str);
 			}
-			for (var key in window.CAD.DEFAULTS.projections) {
-				if (key.indexOf(str) === 0) {
-					return window.CAD.DEFAULTS.projections[key];
-				}
-			}
+            fromPr = this.findProjections(str);
 		}
 		return fromPr;
 	},
@@ -120,14 +125,16 @@ var cadUtils = {
 		var pt = {
 			properties: this._parseProps(it)
 		},
-		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial || it.SpatialData.Entity_Spatial : it.EntitySpatial || it.Entity_Spatial;
+		entitySpatial = it.SpatialData ? it.SpatialData.EntitySpatial || it.SpatialData.Entity_Spatial :
+                        it.EntitySpatial || it.Entity_Spatial,
+        fromPr, prKey;
 
 		if (entitySpatial) {
             var attr = entitySpatial['@attributes'],
 				spatial = entitySpatial['ns3:SpatialElement'] || entitySpatial.Spatial_Element,
-				entSys = attr.EntSys || attr.Ent_Sys,
-                prKey = this.coordSystems[entSys],
-                fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
+				entSys = attr.EntSys || attr.Ent_Sys;
+            prKey = this.coordSystems[entSys];
+            fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
             if (fromPr) {
                 pt.geometry = this._getGeometry(spatial, options && options.flagMSK ? '' : fromPr);
                 if(pt.geometry.type === 'Point' && pt.geometry.coordinates.length === 3) {
@@ -136,7 +143,18 @@ var cadUtils = {
             } else {
                 console.log('Skip projection:', prKey);
             }
-		}
+		} else if (it.OrdX && it.OrdY && it.PKlass) {
+            var coord = [Number(it.OrdY["#text"]), Number(it.OrdX["#text"])],
+                txt = it.PKlass["#text"] || '';
+            prKey = txt.substr(txt.indexOf('МСК '));
+            fromPr = this.getProjections(prKey);
+
+            if (fromPr) { coord = proj4(fromPr, 'WGS84', coord); }
+            pt.geometry = {
+                type: 'Point',
+                coordinates: coord
+            };
+        }
 		return pt;
 	},
 	coordSystems: null,
