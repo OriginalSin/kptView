@@ -101,15 +101,16 @@ var cadUtils = {
 	},
 
 	getProjections: function(prKey, cnum) {
+// prKey = 'СК-1963 район D, зона 1';
 		var fromPr = window.CAD.DEFAULTS.projections[prKey];
 		if (!fromPr) {
 			var str = 'МСК ';
-			if (prKey === 'СК кадастрового округа') {
-				str += cnum.split(':')[0];
-			} else if (prKey.indexOf('МСК - ') === 0) {
+			if (prKey.indexOf('МСК - ') === 0) {
 				str = prKey.replace('МСК - ', str);
 			} else if (prKey.indexOf('МСК-') === 0) {
 				str = prKey.replace('МСК-', str);
+			} else {
+				str += cnum.split(':')[0];
 			}
             fromPr = this.findProjections(str);
 		}
