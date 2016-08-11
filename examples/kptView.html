@@ -14,6 +14,7 @@
         #info {
             width: 30%;
             position: absolute;
+			background: aliceblue;
             right: 120px;
             top: 0px;
             padding: 20px;
@@ -75,6 +76,10 @@
 		#cadVersion {
 			font-weight: bold;
 		}
+		#projectionInput {
+		    width: 500px;
+			height: 70px;
+		}
     </style>
 
 	<link rel="stylesheet" href="../external/leaflet.css" />
@@ -93,8 +98,13 @@
 			<div id="resCont">
 				<div id="fileProgress"></div>
 				<div id="kptInfo"></div>
+				<div id="projection" class="hidden">
+					Текущая проекция:<br>
+					<textarea id="projectionInput"></textarea><br>
+                    <input type="checkbox" id="useThisProjection" /><label>использовать данную проекцию</label>
+				</div>
 				<div id="exportCont">
-                    <input type="checkbox" id="convertMSK" class="hidden"><label>Сохранить в МСК</label>
+                    <input type="checkbox" id="convertMSK" class="hidden" /><label>Сохранить в МСК</label>
 				</div>
 			</div>
 		</div>

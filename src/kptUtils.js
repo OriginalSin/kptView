@@ -67,11 +67,13 @@ var cadUtils = {
 				}
 				arr1 = [arr1];
 			}
-            return this._getRing(arr1, fromPr);
+            var ring = this._getRing(arr1, fromPr);
+			// console.log('ddd', arr1.length, arr1)	// todo: LineString, MultiPolygon
+            return ring;
         }.bind(this));
         if (isArr) {
-            multi = 'Multi';
-            coords = [coords];
+            // multi = 'Multi';
+            // coords = [coords];
         } else if (type === 'Point') {
             coords = coords[0];
         }
@@ -101,7 +103,6 @@ var cadUtils = {
 	},
 
 	getProjections: function(prKey, cnum) {
-// prKey = 'СК-1963 район D, зона 1';
 		var fromPr = window.CAD.DEFAULTS.projections[prKey];
 		if (!fromPr) {
 			var str = 'МСК ';
@@ -135,7 +136,8 @@ var cadUtils = {
 				spatial = entitySpatial['ns3:SpatialElement'] || entitySpatial.Spatial_Element,
 				entSys = attr.EntSys || attr.Ent_Sys;
             prKey = this.coordSystems[entSys];
-            fromPr = this.getProjections(prKey, pt.properties.CadastralNumber);
+            fromPr = options && options.projection ? options.projection : this.getProjections(prKey, pt.properties.CadastralNumber);
+
             if (fromPr) {
                 pt.geometry = this._getGeometry(spatial, options && options.flagMSK ? '' : fromPr);
                 if(pt.geometry.type === 'Point' && pt.geometry.coordinates.length === 3) {
@@ -147,7 +149,7 @@ var cadUtils = {
 		} else if (it.OrdX && it.OrdY && it.PKlass) {
             var coord = [Number(it.OrdY["#text"]), Number(it.OrdX["#text"])],
                 txt = it.PKlass["#text"] || '';
-            prKey = txt.substr(txt.indexOf('МСК '));
+            prKey = txt.substr(txt.indexOf('МСК'));
             fromPr = this.getProjections(prKey);
 
             if (fromPr) { coord = proj4(fromPr, 'WGS84', coord); }
@@ -155,7 +157,10 @@ var cadUtils = {
                 type: 'Point',
                 coordinates: coord
             };
+		} else {
+			// console.log('Skip not EntitySpatial:', it);
         }
+		pt.projection = fromPr;
 		return pt;
 	},
 	coordSystems: null,
@@ -266,14 +271,14 @@ var KptNode = function (data, options) {
 	this._childNodes = {};
 	this._coordSystems = CAD.Utils.getCoordSystems(data, this.options.type === 'root');
 	
-	this.feature = CAD.Utils.getFeature(data);
+	this.feature = CAD.Utils.getFeature(data, {projection: this.options.projection});
 	this.featureMsk = CAD.Utils.getFeature(data, {flagMSK: true});
 	this.id = this.feature.properties.CadastralNumber || 'none';
 }
 KptNode.prototype = {
-	getChilNodes: function(key) {
+	getChilNodes: function(key, project) {
 		var out = this._childNodes[key];
-		if (!out) {
+		if (!out || project) {
 			var data = this.childs[key];
 			if (key === 'ObjectsRealty') { data = data.ObjectRealty; }
 			else if (key === 'OMSPoints') { data = data.OMSPoint; }
@@ -281,7 +286,7 @@ KptNode.prototype = {
 			else if (key === 'Zones') { data = data.Zone; }
 			if (!data.splice) { data = [data]; }
             out = this._childNodes[key] = data.map(function(it) {
-                return new KptNode(it, {type:key});
+                return new KptNode(it, {type:key, projection: project});
             }.bind(this));
 		}
 		return out;

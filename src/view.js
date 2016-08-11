@@ -4,10 +4,15 @@
         init: function (map) {
             viewer._map = map;
             viewer._fileProgress = document.getElementById('fileProgress');
-
+            viewer._projection = document.getElementById('projection');
+            viewer._projectionInput = document.getElementById('projectionInput');
+            viewer._useThisProjection = document.getElementById('useThisProjection');
             viewer._resCont = document.getElementById('resCont');
             L.DomUtil.addClass(viewer._resCont, 'hidden');
 
+			viewer._projectionInput.onchange = function () {
+				viewer._useThisProjection.checked = true;
+			};
             viewer._exportCont = document.getElementById('exportCont');
             var exportIcon = null;
             if (navigator.msSaveBlob) { // IE 10+
@@ -112,20 +117,22 @@
             return group;
         },
         showItem: function (arr, flag) {
-            var countGeo = 0;
+            var countGeo = 0,
+				projection = '';
             if (arr.length) {
                 var type = arr[0].options.type,
-                        group = viewer.getGroup(type),
-                        groupMsk = viewer._groupsMsk[type];
+					group = viewer.getGroup(type),
+					groupMsk = viewer._groupsMsk[type];
 
-                if (!groupMsk) { groupMsk = viewer._groupsMsk[type] = L.featureGroup(); }
+                if (!groupMsk) { groupMsk = viewer._groupsMsk[type] = L.featureGroup({draggable: true}); }
                 if (flag) {
                     var fitbounds, countGeo = 0;
                     arr.forEach(function (node) {
                         var it = node.feature;
+						projection = it.projection;
                         if (it.geometry) {
                             var feature = L.GeoJSON.asFeature(it.geometry),
-                                geoJson = L.geoJson(feature, node.options),
+                                geoJson = L.geoJson(feature, L.extend({}, node.options, {draggable: true})),
                                 bounds = geoJson.getBounds(),
                                 itMsk = node.featureMsk,
                                 featureMsk = L.GeoJSON.asFeature(itMsk.geometry),
@@ -156,17 +163,18 @@
             }
             return {
                 count: countGeo,
-                fitbounds: fitbounds
+                fitbounds: fitbounds,
+				projection: projection
             };
         },
         parseFile: function (reader) {
             viewer._kptObj = window.CAD.Utils.kptToJson(reader.result);
             reader = null;
             var node = viewer._kptObj.node,
-                    infoItem = L.DomUtil.create('div', '', viewer._kptInfo),
-                    infoChkbox = L.DomUtil.create('input', '', infoItem),
-                    infoSpan = L.DomUtil.create('span', '', infoItem),
-                    cont = L.DomUtil.create('div', '', viewer._kptInfo);
+				infoItem = L.DomUtil.create('div', '', viewer._kptInfo),
+				infoChkbox = L.DomUtil.create('input', '', infoItem),
+				infoSpan = L.DomUtil.create('span', '', infoItem),
+				cont = L.DomUtil.create('div', '', viewer._kptInfo);
 
             infoSpan.innerHTML = node.id || '';
             infoChkbox.type = 'checkbox';
@@ -176,12 +184,12 @@
             };
             Object.keys(node.childs).forEach(function (key) {
                 var infoItem = L.DomUtil.create('div', key, cont),
-                        infoChkbox = L.DomUtil.create('input', '', infoItem),
-                        infoSpan = L.DomUtil.create('span', '', infoItem),
-                        cont1 = L.DomUtil.create('div', '', cont),
-                        infoGeomSpan = L.DomUtil.create('span', '', infoItem),
-                        it = node.childs[key],
-                        arr = it[Object.keys(it)];
+					infoChkbox = L.DomUtil.create('input', '', infoItem),
+					infoSpan = L.DomUtil.create('span', '', infoItem),
+					cont1 = L.DomUtil.create('div', '', cont),
+					infoGeomSpan = L.DomUtil.create('span', '', infoItem),
+					it = node.childs[key],
+					arr = it[Object.keys(it)];
 
                 if (!arr.splice) {
                     arr = [arr];
@@ -193,11 +201,13 @@
                 infoChkbox.type = 'checkbox';
                 infoChkbox._cadType = key;
                 infoChkbox.onchange = function (ev) {
-                    var arr = node.getChilNodes(ev.target._cadType),
-                            stat = viewer.showItem(arr, ev.target.checked);
+                    var arr = node.getChilNodes(ev.target._cadType, viewer._useThisProjection.checked ? viewer._projectionInput.value : ''),
+						stat = viewer.showItem(arr, ev.target.checked);
                     it.fitbounds = stat.fitbounds;
                     infoSpan.innerHTML = countInfo + '(геометрий: <b>' + stat.count + '</b>)';
                     L.DomUtil.addClass(infoSpan, 'pointer');
+                    L.DomUtil.removeClass(viewer._projection, 'hidden');
+					if (!viewer._projectionInput.value) { viewer._projectionInput.value = stat.projection; }
                 };
                 L.DomEvent.on(infoSpan, 'dblclick', function () {
                     if (it.fitbounds) {
